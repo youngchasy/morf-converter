@@ -1,0 +1,83 @@
+name: Publish alpha release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: morf-alpha-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            runner: ubuntu-22.04
+            target: ""
+            args: --bundles appimage,deb,rpm
+          - name: Windows x64
+            runner: windows-latest
+            target: ""
+            args: --bundles nsis,msi
+          - name: macOS Intel
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            args: --target x86_64-apple-darwin --bundles dmg
+          - name: macOS Apple Silicon
+            runner: macos-15
+            target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin --bundles dmg
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf xdg-utils rpm
+      - name: Install Rust toolchain
+        if: matrix.target == ''
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust toolchain and target
+        if: matrix.target != ''
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+      - run: npm ci
+      - run: npm run check:version
+      - name: Enable ad-hoc macOS signature
+        if: runner.os == 'macOS'
+        shell: bash
+        run: echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
+      - name: Build installers and draft GitHub release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: morf-v__VERSION__
+          releaseName: "Morf Alpha __VERSION__"
+          releaseBody: |
+            Неподписанная Alpha-версия Morf для ручной установки.
+
+            Windows: рекомендуется NSIS setup.exe. При обновлении запускайте новый setup поверх старой версии.
+            macOS: откройте DMG и замените Morf.app в Applications.
+            Linux: установите новый DEB/RPM поверх предыдущего или замените AppImage.
+
+            Windows SmartScreen и macOS Gatekeeper могут показать предупреждение, потому что publisher-сертификаты не используются.
+          releaseDraft: true
+          prerelease: true
+          args: ${{ matrix.args }}
