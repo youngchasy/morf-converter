@@ -38,16 +38,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "windows": {
-      "allowDowngrades": false,
-      "nsis": {
-        "installMode": "currentUser"
-      },
-      "wix": {
-        "version": "0.1.0.1",
-        "upgradeCode": "c840de67-1399-4414-9ebf-ef7d615e4c39"
-      }
-    },
     "fileAssociations": [
       {
         "ext": ["png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff", "gif", "ico", "avif", "heic", "heif", "svg"],
