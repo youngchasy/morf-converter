@@ -1,0 +1,55 @@
+name: Bug report
+description: Сообщить об ошибке Morf Alpha
+title: "[Bug]: "
+labels: ["bug", "alpha"]
+body:
+  - type: dropdown
+    id: os
+    attributes:
+      label: Операционная система
+      options:
+        - Windows 10/11 x64
+        - macOS Intel
+        - macOS Apple Silicon
+        - Linux x64
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Версия Morf
+      placeholder: 0.1.0-alpha.1
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги воспроизведения
+      description: Не прикладывайте конфиденциальные исходные файлы.
+      placeholder: "1. Добавил...\n2. Выбрал...\n3. Нажал..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ожидаемый результат
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Фактический результат и полный текст ошибки
+    validations:
+      required: true
+  - type: input
+    id: engines
+    attributes:
+      label: Версии движков
+      placeholder: FFmpeg 7.x, LibreOffice 25.x, qpdf...
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Проверка безопасности
+      options:
+        - label: Я удалил из вложений личные данные, документы и секреты.
+          required: true
