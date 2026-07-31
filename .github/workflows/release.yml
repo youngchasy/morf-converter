@@ -24,7 +24,7 @@ jobs:
           - name: Windows x64
             runner: windows-latest
             target: ""
-            args: --bundles nsis,msi
+            args: --bundles nsis
           - name: macOS Intel
             runner: macos-15-intel
             target: x86_64-apple-darwin
