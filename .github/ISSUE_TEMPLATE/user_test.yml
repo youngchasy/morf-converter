@@ -1,0 +1,53 @@
+name: Alpha user test
+description: Зафиксировать обезличенный результат пользовательской сессии
+title: "[UX]: "
+labels: ["ux", "alpha"]
+body:
+  - type: dropdown
+    id: os
+    attributes:
+      label: Платформа
+      options:
+        - Windows
+        - macOS Intel
+        - macOS Apple Silicon
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: completed
+    attributes:
+      label: Выполнено без помощи
+      placeholder: 9 из 12
+    validations:
+      required: true
+  - type: textarea
+    id: blockers
+    attributes:
+      label: Блокирующие проблемы
+    validations:
+      required: true
+  - type: textarea
+    id: observations
+    attributes:
+      label: Наблюдения и обезличенные цитаты
+    validations:
+      required: true
+  - type: dropdown
+    id: score
+    attributes:
+      label: Оценка удобства
+      options:
+        - "5"
+        - "4"
+        - "3"
+        - "2"
+        - "1"
+    validations:
+      required: true
+  - type: textarea
+    id: next
+    attributes:
+      label: Главное предлагаемое улучшение
+    validations:
+      required: true
