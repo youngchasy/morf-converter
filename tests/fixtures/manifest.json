@@ -1,0 +1,26 @@
+{
+  "generatorVersion": 1,
+  "required": [
+    "gradient-320x180.png",
+    "tone-440hz.wav",
+    "two-pages.pdf",
+    "document.rtf",
+    "data.json",
+    "data.yaml",
+    "data.toml",
+    "table.csv",
+    "readme.md",
+    "page.html",
+    "data.xml",
+    "sample.ts",
+    "subtitles.srt",
+    "readme.md.gz"
+  ],
+  "optional": [
+    "gradient.jpg",
+    "tone.mp3",
+    "tone.flac",
+    "video-2s.mp4",
+    "samples.zip"
+  ]
+}
