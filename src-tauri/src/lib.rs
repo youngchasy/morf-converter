@@ -97,9 +97,9 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building Morf")
-        .run(|app, event| {
+        .run(|_app, _event| {
             #[cfg(target_os = "macos")]
-            if let tauri::RunEvent::Opened { urls } = event {
+            if let tauri::RunEvent::Opened { urls } = _event {
                 use tauri::Emitter;
 
                 let paths = urls
@@ -111,11 +111,11 @@ pub fn run() {
                 if paths.is_empty() {
                     return;
                 }
-                if let Ok(mut pending) = app.state::<OpenedFiles>().0.lock() {
+                if let Ok(mut pending) = _app.state::<OpenedFiles>().0.lock() {
                     pending.extend(paths.iter().cloned());
                 }
-                let _ = app.emit("open-files", paths);
-                show_main_window(app);
+                let _ = _app.emit("open-files", paths);
+                show_main_window(_app);
             }
         });
 }

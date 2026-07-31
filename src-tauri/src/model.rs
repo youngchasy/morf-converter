@@ -140,10 +140,8 @@ pub struct BatchResult {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CombineItem {
-    pub id: String,
     pub path: String,
     pub name: String,
-    pub extension: String,
     pub kind: FileKind,
     pub page_range: String,
     pub scale: u16,
