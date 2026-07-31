@@ -1,0 +1,100 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Morf",
+  "version": "0.1.0-alpha.1",
+  "identifier": "app.morf.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Morf",
+        "label": "main",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 860,
+        "minHeight": 620,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: asset: http://asset.localhost; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Utility",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff", "gif", "ico", "avif", "heic", "heif", "svg"],
+        "name": "Morf Images",
+        "description": "Изображение, поддерживаемое Morf",
+        "mimeType": "image/*",
+        "contentTypes": ["public.image"],
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": ["mp4", "mkv", "mov", "webm", "avi", "mpeg", "mpg", "m4v"],
+        "name": "Morf Video",
+        "description": "Видео, поддерживаемое Morf",
+        "mimeType": "video/*",
+        "contentTypes": ["public.movie"],
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": ["mp3", "wav", "flac", "m4a", "aac", "ogg", "opus", "wma"],
+        "name": "Morf Audio",
+        "description": "Аудио, поддерживаемое Morf",
+        "mimeType": "audio/*",
+        "contentTypes": ["public.audio"],
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": ["pdf", "doc", "docx", "odt", "rtf", "xls", "xlsx", "ods", "ppt", "pptx", "odp", "epub"],
+        "name": "Morf Documents",
+        "description": "Документ, поддерживаемый Morf",
+        "mimeType": "application/octet-stream",
+        "contentTypes": ["public.data"],
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": ["json", "yaml", "yml", "toml", "csv", "txt", "md", "markdown", "html", "htm", "xml", "srt", "vtt"],
+        "name": "Morf Text and Data",
+        "description": "Текстовые данные, поддерживаемые Morf",
+        "mimeType": "text/plain",
+        "contentTypes": ["public.text"],
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": ["zip", "7z", "rar", "tar", "gz", "bz2", "xz"],
+        "name": "Morf Archives",
+        "description": "Архив, поддерживаемый Morf",
+        "mimeType": "application/zip",
+        "contentTypes": ["public.archive"],
+        "role": "Editor",
+        "rank": "Alternate"
+      }
+    ],
+    "shortDescription": "Offline file conversion and page workshop",
+    "longDescription": "Morf converts, edits, combines and splits common files locally on your computer."
+  }
+}
