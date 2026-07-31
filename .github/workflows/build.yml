@@ -1,0 +1,123 @@
+name: Build desktop apps
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check:version
+      - run: npm run fixtures
+      - run: npm test
+      - run: npm run build
+
+  engine-smoke:
+    name: Real file smoke tests
+    needs: frontend
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install desktop and conversion engines
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf xdg-utils \
+            ffmpeg qpdf poppler-utils pandoc libreoffice tesseract-ocr \
+            tesseract-ocr-eng tesseract-ocr-rus \
+            libimage-exiftool-perl p7zip-full zip
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+      - run: npm ci
+      - run: npm run fixtures
+      - name: Test Rust core with real fixtures
+        run: cargo test --manifest-path src-tauri/Cargo.toml --all-features
+
+  desktop:
+    name: ${{ matrix.name }}
+    needs: [frontend, engine-smoke]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            runner: ubuntu-22.04
+            target: ""
+            args: --bundles appimage,deb,rpm
+            bundle_path: src-tauri/target/release/bundle/**/*
+          - name: Windows x64
+            runner: windows-latest
+            target: ""
+            args: --bundles nsis,msi
+            bundle_path: src-tauri/target/release/bundle/**/*
+          - name: macOS Intel
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            args: --target x86_64-apple-darwin --bundles dmg
+            bundle_path: src-tauri/target/x86_64-apple-darwin/release/bundle/**/*
+          - name: macOS Apple Silicon
+            runner: macos-15
+            target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin --bundles dmg
+            bundle_path: src-tauri/target/aarch64-apple-darwin/release/bundle/**/*
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install Linux system dependencies
+        if: matrix.runner == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf xdg-utils rpm
+      - name: Install Rust toolchain
+        if: matrix.target == ''
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust toolchain and target
+        if: matrix.target != ''
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+      - run: npm ci
+      - run: npm run check:version
+      - name: Enable ad-hoc macOS signature
+        if: runner.os == 'macOS'
+        shell: bash
+        run: echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
+      - name: Build Tauri bundle
+        uses: tauri-apps/tauri-action@v1
+        with:
+          args: ${{ matrix.args }}
+      - name: Upload installer bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: Morf-${{ matrix.name }}
+          path: ${{ matrix.bundle_path }}
+          if-no-files-found: error
