@@ -83,8 +83,8 @@ function libreOfficeExecutable(directory) {
   return `${folder}/program/soffice`;
 }
 
-function run(command, args) {
-  const result = spawnSync(command, args, { stdio: "inherit" });
+function run(command, args, options = {}) {
+  const result = spawnSync(command, args, { stdio: "inherit", ...options });
   if (result.error) throw result.error;
   if (result.status !== 0) {
     throw new Error(`${command} завершился с кодом ${result.status}`);
@@ -129,13 +129,17 @@ async function main() {
     run("codesign", ["--force", "--sign", "-", unpackerTarget]);
   }
 
-  run("tar", [
-    "-czf",
-    libreOfficeTarget,
-    "-C",
-    dirname(libreOfficeDirectory),
-    basename(libreOfficeDirectory)
-  ]);
+  run(
+    "tar",
+    [
+      "-czf",
+      basename(libreOfficeTarget),
+      "-C",
+      dirname(libreOfficeDirectory),
+      basename(libreOfficeDirectory)
+    ],
+    { cwd: outputDirectory }
+  );
 
   const manifest = {
     schema: 1,

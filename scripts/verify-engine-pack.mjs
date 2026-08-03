@@ -1,14 +1,15 @@
 import { access, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
-import { delimiter, join, resolve } from "node:path";
+import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
-import { dirname, fileURLToPath } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packDirectory = resolve(
   process.env.MORF_ENGINE_PACK_DIR ||
     join(root, "src-tauri", "resources", "engine-pack")
 );
+const extractionTimeout = 15 * 60_000;
 
 async function exists(path) {
   try {
@@ -71,7 +72,11 @@ async function main() {
   try {
     const unpacker = join(packDirectory, manifest.unpacker);
     const environmentArchive = join(packDirectory, manifest.environmentArchive);
-    run(unpacker, [environmentArchive], { cwd: temporary });
+    run(unpacker, [environmentArchive], {
+      cwd: temporary,
+      stdio: "inherit",
+      timeout: extractionTimeout
+    });
 
     const environment = join(temporary, "env");
     const pathEntries = runtimeDirectories(environment);
@@ -115,12 +120,16 @@ async function main() {
 
     const libreOfficeRoot = join(temporary, "libreoffice");
     await mkdir(libreOfficeRoot, { recursive: true });
-    run("tar", [
-      "-xzf",
-      join(packDirectory, manifest.libreofficeArchive),
-      "-C",
-      libreOfficeRoot
-    ]);
+    const libreOfficeArchive = join(packDirectory, manifest.libreofficeArchive);
+    run(
+      "tar",
+      ["-xzf", basename(libreOfficeArchive), "-C", libreOfficeRoot],
+      {
+        cwd: dirname(libreOfficeArchive),
+        stdio: "inherit",
+        timeout: extractionTimeout
+      }
+    );
     const libreOffice = join(
       libreOfficeRoot,
       ...manifest.libreofficeExecutable.split("/")
