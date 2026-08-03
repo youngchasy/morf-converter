@@ -98,7 +98,7 @@ async function locateLibreOffice() {
 
 function libreOfficeExecutable(directory) {
   const folder = basename(directory);
-  if (process.platform === "win32") return `${folder}/program/soffice.exe`;
+  if (process.platform === "win32") return `${folder}/program/soffice.com`;
   if (process.platform === "darwin") {
     return `${folder}/Contents/MacOS/soffice`;
   }

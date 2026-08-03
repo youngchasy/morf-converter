@@ -124,7 +124,7 @@ fn executable_names(command: &str, windows: bool) -> Vec<String> {
     if !windows || Path::new(command).extension().is_some() {
         return vec![command.to_string()];
     }
-    ["exe", "com", "bat", "cmd"]
+    ["com", "exe", "bat", "cmd"]
         .into_iter()
         .map(|extension| format!("{command}.{extension}"))
         .chain(std::iter::once(command.to_string()))
@@ -208,6 +208,7 @@ fn definitions() -> Vec<EngineDefinition> {
                 &[
                     "/Applications/LibreOffice.app/Contents/MacOS/soffice",
                     "/usr/lib/libreoffice/program/soffice",
+                    r"C:\Program Files\LibreOffice\program\soffice.com",
                     r"C:\Program Files\LibreOffice\program\soffice.exe",
                 ],
             ),
@@ -441,8 +442,8 @@ mod command_candidate_tests {
         assert_eq!(
             executable_names("exiftool", true),
             vec![
-                "exiftool.exe".to_string(),
                 "exiftool.com".to_string(),
+                "exiftool.exe".to_string(),
                 "exiftool.bat".to_string(),
                 "exiftool.cmd".to_string(),
                 "exiftool".to_string()

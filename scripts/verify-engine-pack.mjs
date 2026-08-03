@@ -1,8 +1,8 @@
 import { access, mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
-import { basename, delimiter, dirname, join, resolve } from "node:path";
+import { basename, delimiter, dirname, join, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packDirectory = resolve(
@@ -165,9 +165,21 @@ async function main() {
     if (!(await exists(libreOffice))) {
       throw new Error(`LibreOffice не найден после распаковки: ${libreOffice}`);
     }
-    const libreOfficeVersion = run(libreOffice, ["--headless", "--version"], {
-      env: childEnvironment
-    });
+    const libreOfficeProfile = join(temporary, "libreoffice-profile");
+    await mkdir(libreOfficeProfile, { recursive: true });
+    const profileUrl = pathToFileURL(`${libreOfficeProfile}${sep}`).href;
+    const libreOfficeVersion = run(
+      libreOffice,
+      [
+        `-env:UserInstallation=${profileUrl}`,
+        "--headless",
+        "--nologo",
+        "--nodefault",
+        "--nofirststartwizard",
+        "--version"
+      ],
+      { env: childEnvironment, timeout: 5 * 60_000 }
+    );
     console.log(
       `LibreOffice: ${libreOfficeVersion.split(/\r?\n/, 1)[0] || "OK"}`
     );
