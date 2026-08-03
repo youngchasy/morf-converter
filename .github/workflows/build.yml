@@ -68,7 +68,7 @@ jobs:
             pixi_platform: linux-64
             pixi_unpack_asset: pixi-unpack-x86_64-unknown-linux-musl
             pixi_unpack_file: pixi-unpack
-            args: --bundles appimage,deb,rpm
+            args: --bundles appimage,deb
             bundle_path: src-tauri/target/release/bundle/**/*
           - name: Windows x64
             runner: windows-latest

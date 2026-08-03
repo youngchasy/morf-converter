@@ -23,7 +23,7 @@ jobs:
             pixi_platform: linux-64
             pixi_unpack_asset: pixi-unpack-x86_64-unknown-linux-musl
             pixi_unpack_file: pixi-unpack
-            args: --bundles appimage,deb,rpm
+            args: --bundles appimage,deb
           - name: Windows x64
             runner: windows-latest
             target: ""
@@ -119,7 +119,7 @@ jobs:
 
             Windows: рекомендуется NSIS setup.exe. При обновлении запускайте новый setup поверх старой версии.
             macOS: откройте DMG и замените Morf.app в Applications.
-            Linux: установите новый DEB/RPM поверх предыдущего или замените AppImage.
+            Linux: установите новый DEB поверх предыдущего или замените AppImage.
 
             Windows SmartScreen и macOS Gatekeeper могут показать предупреждение, потому что publisher-сертификаты не используются.
           releaseDraft: true
