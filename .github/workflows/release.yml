@@ -20,32 +20,49 @@ jobs:
           - name: Linux x64
             runner: ubuntu-22.04
             target: ""
+            pixi_platform: linux-64
             args: --bundles appimage,deb,rpm
           - name: Windows x64
             runner: windows-latest
             target: ""
+            pixi_platform: win-64
             args: --bundles nsis
           - name: macOS Intel
             runner: macos-15-intel
             target: x86_64-apple-darwin
+            pixi_platform: osx-64
             args: --target x86_64-apple-darwin --bundles dmg
           - name: macOS Apple Silicon
             runner: macos-15
             target: aarch64-apple-darwin
+            pixi_platform: osx-arm64
             args: --target aarch64-apple-darwin --bundles dmg
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 55
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
+      - uses: prefix-dev/setup-pixi@v0.10.0
+        with:
+          run-install: false
       - name: Install Linux system dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf xdg-utils rpm
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev \
+            patchelf xdg-utils rpm libreoffice
+      - name: Install LibreOffice on Windows for bundling
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install libreoffice-fresh --yes --no-progress
+      - name: Install LibreOffice on macOS for bundling
+        if: runner.os == 'macOS'
+        shell: bash
+        run: brew install --cask libreoffice
       - name: Install Rust toolchain
         if: matrix.target == ''
         uses: dtolnay/rust-toolchain@stable
@@ -59,6 +76,18 @@ jobs:
           workspaces: "./src-tauri -> target"
       - run: npm ci
       - run: npm run check:version
+      - name: Build offline processing-engine pack
+        shell: bash
+        run: |
+          rm -f environment.tar
+          pixi lock
+          pixi global install pixi-pack pixi-unpack
+          pixi-pack --platform "${{ matrix.pixi_platform }}" pixi.toml
+          npm run engines:stage
+        env:
+          MORF_ENGINE_PLATFORM: ${{ matrix.pixi_platform }}
+      - name: Verify every bundled engine
+        run: npm run engines:verify
       - name: Enable ad-hoc macOS signature
         if: runner.os == 'macOS'
         shell: bash
@@ -71,7 +100,9 @@ jobs:
           tagName: morf-v__VERSION__
           releaseName: "Morf Alpha __VERSION__"
           releaseBody: |
-            Неподписанная Alpha-версия Morf для ручной установки.
+            Неподписанная Alpha-версия Morf с полным офлайн-комплектом движков.
+
+            FFmpeg, LibreOffice, Pandoc, qpdf, Poppler, Tesseract OCR, ExifTool и 7-Zip уже находятся внутри установщика. При первом запуске Morf автоматически распакует их в пользовательский каталог; интернет, терминал и права администратора не нужны. Первый запуск может занять несколько минут.
 
             Windows: рекомендуется NSIS setup.exe. При обновлении запускайте новый setup поверх старой версии.
             macOS: откройте DMG и замените Morf.app в Applications.
