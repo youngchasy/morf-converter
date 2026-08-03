@@ -21,21 +21,29 @@ jobs:
             runner: ubuntu-22.04
             target: ""
             pixi_platform: linux-64
+            pixi_unpack_asset: pixi-unpack-x86_64-unknown-linux-musl
+            pixi_unpack_file: pixi-unpack
             args: --bundles appimage,deb,rpm
           - name: Windows x64
             runner: windows-latest
             target: ""
             pixi_platform: win-64
+            pixi_unpack_asset: pixi-unpack-x86_64-pc-windows-msvc.exe
+            pixi_unpack_file: pixi-unpack.exe
             args: --bundles nsis
           - name: macOS Intel
             runner: macos-15-intel
             target: x86_64-apple-darwin
             pixi_platform: osx-64
+            pixi_unpack_asset: pixi-unpack-x86_64-apple-darwin
+            pixi_unpack_file: pixi-unpack
             args: --target x86_64-apple-darwin --bundles dmg
           - name: macOS Apple Silicon
             runner: macos-15
             target: aarch64-apple-darwin
             pixi_platform: osx-arm64
+            pixi_unpack_asset: pixi-unpack-aarch64-apple-darwin
+            pixi_unpack_file: pixi-unpack
             args: --target aarch64-apple-darwin --bundles dmg
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 180
@@ -81,11 +89,16 @@ jobs:
         run: |
           rm -f environment.tar
           pixi lock
-          pixi global install pixi-pack pixi-unpack
+          pixi global install "pixi-pack=0.7.10"
+          curl --fail --location --retry 4 --retry-all-errors \
+            "https://github.com/Quantco/pixi-pack/releases/download/v0.7.10/${{ matrix.pixi_unpack_asset }}" \
+            --output "${{ matrix.pixi_unpack_file }}"
+          chmod +x "${{ matrix.pixi_unpack_file }}"
           pixi-pack --platform "${{ matrix.pixi_platform }}" pixi.toml
           npm run engines:stage
         env:
           MORF_ENGINE_PLATFORM: ${{ matrix.pixi_platform }}
+          MORF_PIXI_UNPACK: ${{ github.workspace }}/${{ matrix.pixi_unpack_file }}
       - name: Verify every bundled engine
         run: npm run engines:verify
       - name: Enable ad-hoc macOS signature
