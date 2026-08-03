@@ -5,15 +5,18 @@ use std::{path::Path, process::Command};
 /// On macOS and Linux GUI applications do not get a new terminal for child
 /// processes. Windows console programs do, unless CREATE_NO_WINDOW is used.
 pub fn background_command(executable: impl AsRef<Path>) -> Command {
-    let mut command = Command::new(executable.as_ref());
-
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
 
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let mut command = Command::new(executable.as_ref());
         command.creation_flags(CREATE_NO_WINDOW);
+        command
     }
 
-    command
+    #[cfg(not(target_os = "windows"))]
+    {
+        Command::new(executable.as_ref())
+    }
 }

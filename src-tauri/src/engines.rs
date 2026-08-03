@@ -46,8 +46,29 @@ fn runtime_directories(root: &Path) -> Vec<PathBuf> {
 
 pub fn command(executable: &Path) -> Command {
     let _ = engine_bundle::ensure();
+    let runtime = engine_bundle::runtime();
+    #[cfg(target_os = "windows")]
+    let mut command = if is_perl_batch_launcher(executable, true) {
+        let perl = runtime
+            .as_ref()
+            .map(|runtime| {
+                runtime
+                    .environment
+                    .join("Library")
+                    .join("bin")
+                    .join("perl.exe")
+            })
+            .filter(|path| path.is_file())
+            .unwrap_or_else(|| PathBuf::from("perl.exe"));
+        let mut command = background_command(perl);
+        command.args(["-x", "-S"]).arg(executable);
+        command
+    } else {
+        background_command(executable)
+    };
+    #[cfg(not(target_os = "windows"))]
     let mut command = background_command(executable);
-    if let Some(runtime) = engine_bundle::runtime() {
+    if let Some(runtime) = runtime {
         let mut path_entries = runtime_directories(&runtime.environment);
         if let Some(current) = env::var_os("PATH") {
             path_entries.extend(env::split_paths(&current));
@@ -99,20 +120,37 @@ pub fn command(executable: &Path) -> Command {
     command
 }
 
+fn executable_names(command: &str, windows: bool) -> Vec<String> {
+    if !windows || Path::new(command).extension().is_some() {
+        return vec![command.to_string()];
+    }
+    ["exe", "com", "bat", "cmd"]
+        .into_iter()
+        .map(|extension| format!("{command}.{extension}"))
+        .chain(std::iter::once(command.to_string()))
+        .collect()
+}
+
+#[cfg(any(target_os = "windows", test))]
+fn is_perl_batch_launcher(executable: &Path, windows: bool) -> bool {
+    windows
+        && executable
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.eq_ignore_ascii_case("exiftool.bat"))
+}
+
 fn bundled_command_candidates(command: &str) -> Vec<PathBuf> {
     let _ = engine_bundle::ensure();
     let Some(runtime) = engine_bundle::runtime() else {
         return Vec::new();
     };
-    let mut names = vec![command.to_string()];
-    #[cfg(target_os = "windows")]
-    if !command.to_ascii_lowercase().ends_with(".exe") {
-        names.push(format!("{command}.exe"));
-    }
+    let names = executable_names(command, cfg!(target_os = "windows"));
+    let directories = runtime_directories(&runtime.environment);
     let mut candidates = Vec::new();
-    for directory in runtime_directories(&runtime.environment) {
-        for name in &names {
-            candidates.push(directory.join(name));
+    for name in &names {
+        for directory in &directories {
+            candidates.push(directory.join(name.as_str()));
         }
     }
     candidates
@@ -279,18 +317,19 @@ fn definitions() -> Vec<EngineDefinition> {
 }
 
 fn platform_candidates(command: &str, additional: &[&str]) -> Vec<PathBuf> {
-    let mut candidates = vec![PathBuf::from(command)];
-    #[cfg(target_os = "windows")]
-    if !command.ends_with(".exe") {
-        candidates.push(PathBuf::from(format!("{command}.exe")));
-    }
+    let names = executable_names(command, cfg!(target_os = "windows"));
+    let mut candidates = names
+        .iter()
+        .map(|name| PathBuf::from(name.as_str()))
+        .collect::<Vec<_>>();
     candidates.extend(additional.iter().map(|value| PathBuf::from(*value)));
 
     if let Some(path) = env::var_os("PATH") {
-        for directory in env::split_paths(&path) {
-            candidates.push(directory.join(command));
-            #[cfg(target_os = "windows")]
-            candidates.push(directory.join(format!("{command}.exe")));
+        let directories = env::split_paths(&path).collect::<Vec<_>>();
+        for name in &names {
+            for directory in &directories {
+                candidates.push(directory.join(name.as_str()));
+            }
         }
     }
     candidates
@@ -390,6 +429,31 @@ pub fn detect() -> Result<Vec<EngineInfo>, String> {
         });
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod command_candidate_tests {
+    use super::{executable_names, is_perl_batch_launcher};
+    use std::path::Path;
+
+    #[test]
+    fn windows_candidates_prefer_native_and_batch_launchers() {
+        assert_eq!(
+            executable_names("exiftool", true),
+            vec![
+                "exiftool.exe".to_string(),
+                "exiftool.com".to_string(),
+                "exiftool.bat".to_string(),
+                "exiftool.cmd".to_string(),
+                "exiftool".to_string()
+            ]
+        );
+        assert!(is_perl_batch_launcher(
+            Path::new("C:/env/bin/exiftool.bat"),
+            true
+        ));
+        assert!(!is_perl_batch_launcher(Path::new("exiftool"), true));
+    }
 }
 
 pub fn install_plans() -> Vec<EngineInstallPlan> {

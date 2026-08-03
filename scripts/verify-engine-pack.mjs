@@ -1,4 +1,4 @@
-import { access, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
@@ -21,13 +21,23 @@ async function exists(path) {
 }
 
 function run(path, args, options = {}) {
-  const result = spawnSync(path, args, {
+  const isExifToolPerlLauncher =
+    process.platform === "win32" && basename(path).toLowerCase() === "exiftool.bat";
+  const executable = isExifToolPerlLauncher
+    ? join(dirname(path), "..", "Library", "bin", "perl.exe")
+    : path;
+  const executableArgs = isExifToolPerlLauncher
+    ? ["-x", "-S", path, ...args]
+    : args;
+  const result = spawnSync(executable, executableArgs, {
     encoding: "utf8",
     maxBuffer: 8 * 1024 * 1024,
     timeout: 180_000,
     ...options
   });
-  if (result.error) throw result.error;
+  if (result.error) {
+    throw new Error(`Не удалось запустить ${path}: ${result.error.message}`);
+  }
   if (result.status !== 0) {
     const detail = (result.stderr || result.stdout || "").trim();
     throw new Error(
@@ -48,16 +58,33 @@ function runtimeDirectories(environment) {
 }
 
 async function findExecutable(environment, names) {
-  const suffixes = process.platform === "win32" ? [".exe", ""] : [""];
-  for (const directory of runtimeDirectories(environment)) {
-    for (const name of names) {
-      for (const suffix of suffixes) {
+  const suffixes =
+    process.platform === "win32" ? [".exe", ".com", ".bat", ".cmd", ""] : [""];
+  for (const suffix of suffixes) {
+    for (const directory of runtimeDirectories(environment)) {
+      for (const name of names) {
         const candidate = join(directory, `${name}${suffix}`);
         if (await exists(candidate)) return candidate;
       }
     }
   }
   throw new Error(`Не найден движок ${names.join("/")} в ${environment}`);
+}
+
+async function applyBundledEnvironment(environment, target) {
+  for (const directory of [
+    join(environment, "etc", "conda", "env_vars.d"),
+    join(environment, "Library", "etc", "conda", "env_vars.d")
+  ]) {
+    if (!(await exists(directory))) continue;
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".json")) continue;
+      const values = JSON.parse(await readFile(join(directory, entry.name), "utf8"));
+      for (const [name, value] of Object.entries(values)) {
+        if (typeof value === "string") target[name] = value;
+      }
+    }
+  }
 }
 
 async function main() {
@@ -85,6 +112,7 @@ async function main() {
       CONDA_PREFIX: environment,
       PATH: [...pathEntries, process.env.PATH || ""].join(delimiter)
     };
+    await applyBundledEnvironment(environment, childEnvironment);
     for (const tessdata of [
       join(environment, "share", "tessdata"),
       join(environment, "Library", "share", "tessdata")
