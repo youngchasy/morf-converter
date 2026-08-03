@@ -4,20 +4,18 @@ use std::{
 };
 
 use image::{
-    codecs::jpeg::JpegEncoder,
-    imageops,
-    DynamicImage, ExtendedColorType, GenericImageView, Rgba, RgbaImage,
+    codecs::jpeg::JpegEncoder, imageops, DynamicImage, ExtendedColorType, GenericImageView, Rgba,
+    RgbaImage,
 };
 use lopdf::{dictionary, Document, Object, Stream};
 
 use crate::{
     engines::{find_engine, find_related_command},
-    external_ops,
-    image_ops,
+    external_ops, image_ops,
     model::{CombineItem, ConversionOptions},
     util::{
-        collect_matching_files, collision_free_path, ensure_directory, parse_hex_color, run_checked,
-        stem,
+        collect_matching_files, collision_free_path, ensure_directory, parse_hex_color,
+        run_checked, stem,
     },
 };
 
@@ -68,12 +66,10 @@ fn page_number(token: &str, count: usize) -> Result<usize, String> {
         if from_end == 0 {
             return Err(format!("Некорректная страница: {token}"));
         }
-        return Ok(
-            count
-                .saturating_add(1)
-                .saturating_sub(from_end)
-                .clamp(1, count),
-        );
+        return Ok(count
+            .saturating_add(1)
+            .saturating_sub(from_end)
+            .clamp(1, count));
     }
     token
         .parse::<usize>()
@@ -94,9 +90,13 @@ pub fn parse_page_range(value: &str, count: usize) -> Result<Vec<usize>, String>
     for raw_segment in value.split(',') {
         let (segment, modifier) = raw_segment
             .split_once(':')
-            .map_or((raw_segment, None), |(range, modifier)| (range, Some(modifier)));
+            .map_or((raw_segment, None), |(range, modifier)| {
+                (range, Some(modifier))
+            });
         if segment.starts_with('x') {
-            return Err("Исключающие диапазоны поддерживаются только в режиме «без потерь»".to_string());
+            return Err(
+                "Исключающие диапазоны поддерживаются только в режиме «без потерь»".to_string(),
+            );
         }
         let mut segment_pages = if let Some((left, right)) = segment.split_once('-') {
             let start = page_number(left, count)?;
@@ -199,13 +199,8 @@ pub fn images_to_pdf(
         });
 
         let margin = page.margin.max(0.0);
-        let (page_width, page_height) = oriented_page_size(
-            page_preset,
-            orientation,
-            pixel_width,
-            pixel_height,
-            margin,
-        );
+        let (page_width, page_height) =
+            oriented_page_size(page_preset, orientation, pixel_width, pixel_height, margin);
         let available_width = (page_width - margin * 2.0).max(1.0);
         let available_height = (page_height - margin * 2.0).max(1.0);
         let source_width = pixel_width as f32;
@@ -244,8 +239,7 @@ pub fn images_to_pdf(
                 draw_height
             ));
         }
-        let content_id =
-            document.add_object(Stream::new(dictionary! {}, content.into_bytes()));
+        let content_id = document.add_object(Stream::new(dictionary! {}, content.into_bytes()));
         let page_id = document.add_object(dictionary! {
             "Type" => "Page",
             "Parent" => pages_id,
@@ -295,12 +289,23 @@ pub fn single_image_to_pdf(
         border_color: "#000000".to_string(),
         fit: "contain".to_string(),
     };
-    images_to_pdf(&[spec], output, "source", "portrait", "#ffffff", options.quality)
+    images_to_pdf(
+        &[spec],
+        output,
+        "source",
+        "portrait",
+        "#ffffff",
+        options.quality,
+    )
 }
 
 pub fn merge_lossless(items: &[CombineItem], output: &Path) -> Result<(), String> {
     let qpdf = find_engine("qpdf").ok_or_else(|| "qpdf не найден".to_string())?;
-    if items.is_empty() || items.iter().any(|item| !matches!(item.kind, crate::model::FileKind::Pdf)) {
+    if items.is_empty()
+        || items
+            .iter()
+            .any(|item| !matches!(item.kind, crate::model::FileKind::Pdf))
+    {
         return Err("Режим без потерь принимает только PDF".to_string());
     }
     if let Some(parent) = output.parent() {
@@ -326,7 +331,8 @@ pub(crate) fn render_one_page(
     output_prefix: &Path,
     dpi: u16,
 ) -> Result<PathBuf, String> {
-    let poppler = find_engine("poppler").ok_or_else(|| "Poppler (pdftoppm) не найден".to_string())?;
+    let poppler =
+        find_engine("poppler").ok_or_else(|| "Poppler (pdftoppm) не найден".to_string())?;
     let arguments = vec![
         "-f".to_string(),
         page.to_string(),
@@ -361,10 +367,7 @@ pub fn prepare_layout_pages(
                 let source_format = crate::util::extension(input);
                 if image_ops::is_native_image_format(&source_format) {
                     pages.push(ImagePageSpec::from_combine_item(item, input.to_path_buf()));
-                } else if matches!(
-                    source_format.as_str(),
-                    "avif" | "heic" | "heif" | "svg"
-                ) {
+                } else if matches!(source_format.as_str(), "avif" | "heic" | "heif" | "svg") {
                     let decoded = temp_dir.join(format!("image-{item_index}.png"));
                     external_ops::convert_media(
                         input,
@@ -381,8 +384,7 @@ pub fn prepare_layout_pages(
                 let count = page_count(input)?;
                 let selection = parse_page_range(&item.page_range, count)?;
                 for (selection_index, page_number) in selection.into_iter().enumerate() {
-                    let prefix =
-                        temp_dir.join(format!("pdf-{item_index}-page-{selection_index}"));
+                    let prefix = temp_dir.join(format!("pdf-{item_index}-page-{selection_index}"));
                     let rendered = render_one_page(input, page_number, &prefix, dpi)?;
                     pages.push(ImagePageSpec::from_combine_item(item, rendered));
                 }
@@ -473,9 +475,14 @@ pub fn render_pdf(
     if !matches!(format.as_str(), "png" | "jpg" | "jpeg") {
         return Err("PDF можно вывести в PNG, JPEG или TXT".to_string());
     }
-    let poppler = find_engine("poppler").ok_or_else(|| "Poppler (pdftoppm) не найден".to_string())?;
+    let poppler =
+        find_engine("poppler").ok_or_else(|| "Poppler (pdftoppm) не найден".to_string())?;
     for page in 1..=count {
-        let extension = if format == "jpeg" { "jpg" } else { format.as_str() };
+        let extension = if format == "jpeg" {
+            "jpg"
+        } else {
+            format.as_str()
+        };
         let output =
             collision_free_path(output_dir, &format!("{base}-page-{page}"), extension, false);
         let prefix = output.with_extension("");

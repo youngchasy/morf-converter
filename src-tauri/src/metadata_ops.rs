@@ -15,8 +15,7 @@ pub fn read(path: &str) -> Result<Value, String> {
     if !input.is_file() {
         return Err("Файл не найден".to_string());
     }
-    let exiftool =
-        find_engine("exiftool").ok_or_else(|| "ExifTool не найден".to_string())?;
+    let exiftool = find_engine("exiftool").ok_or_else(|| "ExifTool не найден".to_string())?;
     let arguments = vec![
         "-j".to_string(),
         "-G1".to_string(),
@@ -44,8 +43,7 @@ pub fn strip_copy(path: &str, output_dir: &str) -> Result<PathBuf, String> {
     );
     fs::copy(input, &output)
         .map_err(|error| format!("Не удалось создать безопасную копию: {error}"))?;
-    let exiftool =
-        find_engine("exiftool").ok_or_else(|| "ExifTool не найден".to_string())?;
+    let exiftool = find_engine("exiftool").ok_or_else(|| "ExifTool не найден".to_string())?;
     let arguments = vec![
         "-all=".to_string(),
         "-overwrite_original".to_string(),
@@ -62,8 +60,8 @@ pub fn copy_all(input: &Path, output: &Path) -> Result<(), String> {
     if !input.is_file() || !output.is_file() {
         return Err("Не удалось сохранить метаданные: вход или результат не найден".to_string());
     }
-    let exiftool =
-        find_engine("exiftool").ok_or_else(|| "Для сохранения метаданных нужен ExifTool".to_string())?;
+    let exiftool = find_engine("exiftool")
+        .ok_or_else(|| "Для сохранения метаданных нужен ExifTool".to_string())?;
     let arguments = vec![
         "-TagsFromFile".to_string(),
         input.to_string_lossy().to_string(),
@@ -101,11 +99,7 @@ mod tests {
         assert!(metadata.is_array());
 
         let output = tempfile::tempdir().unwrap();
-        let clean = strip_copy(
-            &input.to_string_lossy(),
-            &output.path().to_string_lossy(),
-        )
-        .unwrap();
+        let clean = strip_copy(&input.to_string_lossy(), &output.path().to_string_lossy()).unwrap();
         assert!(clean.is_file());
         assert_ne!(clean, input);
         copy_all(&input, &clean).unwrap();

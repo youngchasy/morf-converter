@@ -5,9 +5,8 @@ use std::{
 };
 
 use image::{
-    codecs::jpeg::JpegEncoder,
-    imageops::FilterType,
-    DynamicImage, ExtendedColorType, GenericImageView, ImageFormat,
+    codecs::jpeg::JpegEncoder, imageops::FilterType, DynamicImage, ExtendedColorType,
+    GenericImageView, ImageFormat,
 };
 
 use crate::{
@@ -15,8 +14,9 @@ use crate::{
     util::{collision_free_path, ensure_directory, extension, stem},
 };
 
-pub const NATIVE_IMAGE_FORMATS: &[&str] =
-    &["png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff", "gif", "ico"];
+pub const NATIVE_IMAGE_FORMATS: &[&str] = &[
+    "png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff", "gif", "ico",
+];
 
 pub fn is_native_image_format(value: &str) -> bool {
     NATIVE_IMAGE_FORMATS.contains(&value.trim_start_matches('.').to_ascii_lowercase().as_str())
@@ -32,8 +32,8 @@ pub fn rotate(image: DynamicImage, degrees: u16) -> DynamicImage {
 }
 
 fn transformed(input: &Path, options: &ConversionOptions) -> Result<DynamicImage, String> {
-    let mut image =
-        image::open(input).map_err(|error| format!("Не удалось открыть {}: {error}", input.display()))?;
+    let mut image = image::open(input)
+        .map_err(|error| format!("Не удалось открыть {}: {error}", input.display()))?;
     image = rotate(image, options.rotation);
     if options.grayscale {
         image = image.grayscale();
@@ -175,8 +175,8 @@ pub fn split_tiles(
         return Err("Сетка должна быть от 1×1 до 100×100".to_string());
     }
     ensure_directory(output_dir)?;
-    let image =
-        image::open(input).map_err(|error| format!("Не удалось открыть {}: {error}", input.display()))?;
+    let image = image::open(input)
+        .map_err(|error| format!("Не удалось открыть {}: {error}", input.display()))?;
     let (width, height) = image.dimensions();
     let output_extension = match extension(input).as_str() {
         value if is_native_image_format(value) => value.to_string(),

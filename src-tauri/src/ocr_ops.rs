@@ -80,13 +80,7 @@ pub fn run(request: OcrRequest) -> Result<PathBuf, String> {
     let mut recognized = Vec::with_capacity(pages.len());
     for (index, page) in pages.iter().enumerate() {
         let base = temp.path().join(format!("ocr-page-{}", index + 1));
-        recognized.push(recognize_page(
-            &tesseract,
-            page,
-            &base,
-            &language,
-            &format,
-        )?);
+        recognized.push(recognize_page(&tesseract, page, &base, &language, &format)?);
     }
 
     if format == "txt" {
@@ -123,10 +117,7 @@ pub fn run(request: OcrRequest) -> Result<PathBuf, String> {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use crate::{
-        engines,
-        model::OcrRequest,
-    };
+    use crate::{engines, model::OcrRequest};
 
     use super::run;
 

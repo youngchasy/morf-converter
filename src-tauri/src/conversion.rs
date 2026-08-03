@@ -4,9 +4,7 @@ use std::{
 };
 
 use crate::{
-    external_ops,
-    image_ops,
-    metadata_ops,
+    external_ops, image_ops, metadata_ops,
     model::{BatchResult, ConversionRequest, JobResult},
     pdf_ops, text_ops,
     util::{collision_free_path, ensure_directory, extension, stem},
@@ -16,7 +14,9 @@ fn validate_format(value: &str) -> Result<String, String> {
     let value = value.trim().trim_start_matches('.').to_ascii_lowercase();
     if value.is_empty()
         || value.len() > 12
-        || !value.chars().all(|character| character.is_ascii_alphanumeric())
+        || !value
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric())
     {
         return Err("Некорректный формат результата".to_string());
     }
@@ -26,7 +26,8 @@ fn validate_format(value: &str) -> Result<String, String> {
 fn is_office_or_markup(value: &str) -> bool {
     matches!(
         value,
-        "doc" | "docx"
+        "doc"
+            | "docx"
             | "odt"
             | "rtf"
             | "xls"
@@ -70,9 +71,7 @@ fn convert_one(
         return Ok(vec![output.to_path_buf()]);
     }
 
-    if matches!(source_format, "avif" | "heic" | "heif" | "svg")
-        && target_format == "pdf"
-    {
+    if matches!(source_format, "avif" | "heic" | "heif" | "svg") && target_format == "pdf" {
         let temp = tempfile::tempdir().map_err(|error| error.to_string())?;
         let raster = temp.path().join("decoded.png");
         let mut decode_options = request.options.clone();
@@ -114,8 +113,7 @@ fn convert_one(
     }
 
     if requires_ffmpeg(source_format, target_format)
-        || (image_ops::is_native_image_format(target_format)
-            && !is_office_or_markup(source_format))
+        || (image_ops::is_native_image_format(target_format) && !is_office_or_markup(source_format))
     {
         external_ops::convert_media(input, output, target_format, &request.options)?;
         return Ok(vec![output.to_path_buf()]);
@@ -168,12 +166,7 @@ where
             continue;
         }
         let source_format = extension(&input);
-        let output = collision_free_path(
-            &output_dir,
-            &stem(&input),
-            &target_format,
-            false,
-        );
+        let output = collision_free_path(&output_dir, &stem(&input), &target_format, false);
         let output_existed = output.exists();
         if output == input {
             items.push(JobResult {
@@ -186,13 +179,7 @@ where
             continue;
         }
 
-        match convert_one(
-            &input,
-            &output,
-            &source_format,
-            &target_format,
-            &request,
-        ) {
+        match convert_one(&input, &output, &source_format, &target_format, &request) {
             Ok(outputs) => {
                 for created in outputs {
                     if request.options.preserve_metadata {

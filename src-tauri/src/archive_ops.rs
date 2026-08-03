@@ -105,12 +105,7 @@ fn create_zip(inputs: &[String], output: &Path) -> Result<PathBuf, String> {
             writer
                 .add_directory(format!("{archive_name}/"), options.clone())
                 .map_err(|error| format!("Не удалось добавить папку в ZIP: {error}"))?;
-            append_directory(
-                &mut writer,
-                path,
-                Path::new(&archive_name),
-                options.clone(),
-            )?;
+            append_directory(&mut writer, path, Path::new(&archive_name), options.clone())?;
         } else if metadata.is_file() {
             writer
                 .start_file(archive_name, options.clone())
@@ -203,8 +198,8 @@ fn collision_free_extracted_file(target: &Path) -> PathBuf {
 fn extract_zip(input: &Path, output_dir: &Path) -> Result<Vec<PathBuf>, String> {
     let file = File::open(input)
         .map_err(|error| format!("Не удалось открыть {}: {error}", input.display()))?;
-    let mut archive =
-        ZipArchive::new(BufReader::new(file)).map_err(|error| format!("Повреждённый ZIP: {error}"))?;
+    let mut archive = ZipArchive::new(BufReader::new(file))
+        .map_err(|error| format!("Повреждённый ZIP: {error}"))?;
     let mut outputs = Vec::new();
     for index in 0..archive.len() {
         let mut entry = archive
@@ -295,7 +290,10 @@ mod tests {
         })
         .unwrap();
         assert_eq!(files.len(), 1);
-        assert_eq!(fs::read_to_string(&files[0]).unwrap(), "Morf archive fixture");
+        assert_eq!(
+            fs::read_to_string(&files[0]).unwrap(),
+            "Morf archive fixture"
+        );
     }
 
     #[test]

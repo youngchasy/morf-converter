@@ -3,12 +3,7 @@ use std::{io::Cursor, path::Path};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use image::ImageFormat;
 
-use crate::{
-    external_ops,
-    model::ConversionOptions,
-    pdf_ops,
-    util::extension,
-};
+use crate::{external_ops, model::ConversionOptions, pdf_ops, util::extension};
 
 fn encode_thumbnail(path: &Path, max_size: u32) -> Result<String, String> {
     let image = image::open(path)
@@ -39,12 +34,7 @@ pub fn thumbnail(path: &str, page: usize, max_size: u32) -> Result<String, Strin
     if matches!(extension(input).as_str(), "avif" | "heic" | "heif" | "svg") {
         let temp = tempfile::tempdir().map_err(|error| error.to_string())?;
         let decoded = temp.path().join("thumbnail.png");
-        external_ops::convert_media(
-            input,
-            &decoded,
-            "png",
-            &ConversionOptions::default(),
-        )?;
+        external_ops::convert_media(input, &decoded, "png", &ConversionOptions::default())?;
         return encode_thumbnail(&decoded, max_size);
     }
     encode_thumbnail(input, max_size)

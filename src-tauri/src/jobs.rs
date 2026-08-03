@@ -35,10 +35,11 @@ impl JobControl {
         if self.cancelled.load(Ordering::Acquire) {
             return Err(CANCELLED.to_string());
         }
-        let mut guard = self.lock.lock().map_err(|_| "Очередь недоступна".to_string())?;
-        while self.paused.load(Ordering::Acquire)
-            && !self.cancelled.load(Ordering::Acquire)
-        {
+        let mut guard = self
+            .lock
+            .lock()
+            .map_err(|_| "Очередь недоступна".to_string())?;
+        while self.paused.load(Ordering::Acquire) && !self.cancelled.load(Ordering::Acquire) {
             let waited = self
                 .changed
                 .wait_timeout(guard, Duration::from_millis(300))
@@ -308,8 +309,7 @@ impl JobManager {
             entry.control.pause();
             self.inner.gate.changed.notify_all();
             entry.snapshot.status = "paused".to_string();
-            entry.snapshot.message =
-                Some("Пауза вступит в силу после текущего файла".to_string());
+            entry.snapshot.message = Some("Пауза вступит в силу после текущего файла".to_string());
         }
         Ok(entry.snapshot.clone())
     }
@@ -348,8 +348,7 @@ impl JobManager {
             entry.control.cancel();
             self.inner.gate.changed.notify_all();
             entry.snapshot.status = "cancelling".to_string();
-            entry.snapshot.message =
-                Some("Отмена вступит в силу после текущего файла".to_string());
+            entry.snapshot.message = Some("Отмена вступит в силу после текущего файла".to_string());
         }
         Ok(entry.snapshot.clone())
     }

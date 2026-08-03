@@ -33,10 +33,12 @@ fn read_value(input: &Path, source_format: &str) -> Result<Value, String> {
     let source = fs::read_to_string(input)
         .map_err(|error| format!("Не удалось прочитать {}: {error}", input.display()))?;
     match source_format {
-        "json" => serde_json::from_str(&source).map_err(|error| format!("Некорректный JSON: {error}")),
+        "json" => {
+            serde_json::from_str(&source).map_err(|error| format!("Некорректный JSON: {error}"))
+        }
         "yaml" | "yml" => {
-            let value: serde_yaml::Value =
-                serde_yaml::from_str(&source).map_err(|error| format!("Некорректный YAML: {error}"))?;
+            let value: serde_yaml::Value = serde_yaml::from_str(&source)
+                .map_err(|error| format!("Некорректный YAML: {error}"))?;
             serde_json::to_value(value).map_err(|error| error.to_string())
         }
         "toml" => {
@@ -46,7 +48,9 @@ fn read_value(input: &Path, source_format: &str) -> Result<Value, String> {
         }
         "csv" => read_csv(input),
         value if is_plain_text_format(value) => Ok(Value::String(source)),
-        _ => Err(format!("Чтение .{source_format} нативным движком не поддерживается")),
+        _ => Err(format!(
+            "Чтение .{source_format} нативным движком не поддерживается"
+        )),
     }
 }
 
@@ -81,8 +85,8 @@ fn write_csv(output: &Path, value: &Value) -> Result<(), String> {
         headers.extend(object.keys().cloned());
     }
     let headers = headers.into_iter().collect::<Vec<_>>();
-    let mut writer =
-        csv::Writer::from_path(output).map_err(|error| format!("Не удалось создать CSV: {error}"))?;
+    let mut writer = csv::Writer::from_path(output)
+        .map_err(|error| format!("Не удалось создать CSV: {error}"))?;
     writer
         .write_record(&headers)
         .map_err(|error| format!("Не удалось записать CSV: {error}"))?;
@@ -129,7 +133,8 @@ pub fn convert(
         .map_err(|error| format!("Не удалось записать YAML: {error}")),
         "toml" => fs::write(
             output,
-            toml::to_string_pretty(&value).map_err(|error| format!("Нельзя представить как TOML: {error}"))?,
+            toml::to_string_pretty(&value)
+                .map_err(|error| format!("Нельзя представить как TOML: {error}"))?,
         )
         .map_err(|error| format!("Не удалось записать TOML: {error}")),
         "csv" => write_csv(output, &value),
@@ -139,6 +144,8 @@ pub fn convert(
             });
             fs::write(output, text).map_err(|error| format!("Не удалось записать текст: {error}"))
         }
-        _ => Err(format!("Запись .{target_format} нативным движком не поддерживается")),
+        _ => Err(format!(
+            "Запись .{target_format} нативным движком не поддерживается"
+        )),
     }
 }

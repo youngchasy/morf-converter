@@ -1,18 +1,16 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    process::Command,
 };
 
 use crate::{
-    engines::find_engine,
+    engines::{command, find_engine},
     model::ConversionOptions,
     util::{extension, run_checked},
 };
 
 const VIDEO_FORMATS: &[&str] = &[
-    "mp4", "mkv", "mov", "webm", "avi", "mpeg", "mpg", "m4v", "m2ts", "mts", "flv",
-    "3gp", "ogv",
+    "mp4", "mkv", "mov", "webm", "avi", "mpeg", "mpg", "m4v", "m2ts", "mts", "flv", "3gp", "ogv",
 ];
 const AUDIO_FORMATS: &[&str] = &[
     "mp3", "wav", "flac", "m4a", "aac", "ogg", "opus", "wma", "aiff", "ac3",
@@ -58,9 +56,7 @@ pub fn convert_media(
 }
 
 fn detect_hardware_encoder(ffmpeg: &Path) -> String {
-    let output = Command::new(ffmpeg)
-        .args(["-hide_banner", "-encoders"])
-        .output();
+    let output = command(ffmpeg).args(["-hide_banner", "-encoders"]).output();
     let Ok(output) = output else {
         return "software".to_string();
     };
@@ -104,7 +100,11 @@ fn media_arguments(
     options: &ConversionOptions,
     encoder: &str,
 ) -> Vec<String> {
-    let mut arguments = vec!["-hide_banner".to_string(), "-nostdin".to_string(), "-n".to_string()];
+    let mut arguments = vec![
+        "-hide_banner".to_string(),
+        "-nostdin".to_string(),
+        "-n".to_string(),
+    ];
     if let Some(start) = options.trim_start.filter(|value| *value > 0.0) {
         arguments.push("-ss".to_string());
         arguments.push(format!("{start:.3}"));
@@ -127,11 +127,7 @@ fn media_arguments(
             .is_some_and(|path| !path.trim().is_empty())
         && matches!(target, "mp4" | "mkv" | "mov" | "m4v" | "webm");
     let subtitle_input = if has_watermark { 2 } else { 1 };
-    if let Some(path) = options
-        .subtitle_path
-        .as_deref()
-        .filter(|_| mux_subtitles)
-    {
+    if let Some(path) = options.subtitle_path.as_deref().filter(|_| mux_subtitles) {
         arguments.push("-i".to_string());
         arguments.push(path.to_string());
     }
@@ -313,25 +309,14 @@ fn media_arguments(
     arguments
 }
 
-pub fn convert_document(
-    input: &Path,
-    output: &Path,
-    target_format: &str,
-) -> Result<(), String> {
+pub fn convert_document(input: &Path, output: &Path, target_format: &str) -> Result<(), String> {
     let source = extension(input);
     let target = target_format.trim_start_matches('.').to_ascii_lowercase();
-    let markup_source = matches!(
-        source.as_str(),
-        "md" | "markdown" | "html" | "htm"
-    );
+    let markup_source = matches!(source.as_str(), "md" | "markdown" | "html" | "htm");
     let pandoc_document_source = matches!(source.as_str(), "docx" | "odt" | "epub");
-    let markup_target = matches!(
-        target.as_str(),
-        "md" | "markdown" | "html" | "htm" | "epub"
-    );
+    let markup_target = matches!(target.as_str(), "md" | "markdown" | "html" | "htm" | "epub");
 
-    if (markup_source
-        && (markup_target || matches!(target.as_str(), "docx" | "odt" | "txt")))
+    if (markup_source && (markup_target || matches!(target.as_str(), "docx" | "odt" | "txt")))
         || (pandoc_document_source && markup_target)
         || (source == "epub" && matches!(target.as_str(), "docx" | "odt" | "txt"))
     {
@@ -372,18 +357,21 @@ fn run_pandoc(input: &Path, output: &Path) -> Result<(), String> {
     run_checked(&pandoc, &arguments).map(|_| ())
 }
 
-fn run_libreoffice(
-    input: &Path,
-    output_dir: &Path,
-    target: &str,
-) -> Result<PathBuf, String> {
+fn run_libreoffice(input: &Path, output_dir: &Path, target: &str) -> Result<PathBuf, String> {
     let libreoffice =
         find_engine("libreoffice").ok_or_else(|| "LibreOffice не найден".to_string())?;
+    let profile = tempfile::tempdir()
+        .map_err(|error| format!("Не удалось создать профиль LibreOffice: {error}"))?;
+    let profile_url = url::Url::from_directory_path(profile.path())
+        .map_err(|_| "Не удалось подготовить путь профиля LibreOffice".to_string())?;
     let arguments = vec![
+        format!("-env:UserInstallation={profile_url}"),
         "--headless".to_string(),
         "--nologo".to_string(),
         "--nodefault".to_string(),
         "--nolockcheck".to_string(),
+        "--norestore".to_string(),
+        "--nofirststartwizard".to_string(),
         "--convert-to".to_string(),
         target.to_string(),
         "--outdir".to_string(),

@@ -1,6 +1,7 @@
 mod archive_ops;
 mod commands;
 mod conversion;
+mod engine_bundle;
 mod engines;
 mod external_ops;
 mod image_ops;
@@ -10,6 +11,7 @@ mod model;
 mod ocr_ops;
 mod pdf_ops;
 mod preview;
+mod process;
 mod settings;
 mod text_ops;
 mod util;
@@ -63,6 +65,7 @@ pub fn run() {
     builder
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            engine_bundle::configure(app.path().resource_dir()?, app.path().app_local_data_dir()?);
             if let Ok(value) = settings::load(app.handle()) {
                 engines::set_custom_paths(&value.engine_paths);
                 app.state::<jobs::JobManager>()

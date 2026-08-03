@@ -23,23 +23,19 @@ use crate::{
 
 fn kind_for_extension(value: &str) -> FileKind {
     match value {
-        "png" | "jpg" | "jpeg" | "webp" | "bmp" | "tif" | "tiff" | "gif" | "ico"
-        | "avif" | "heic" | "heif" | "svg" => FileKind::Image,
-        "mp4" | "mkv" | "mov" | "webm" | "avi" | "mpeg" | "mpg" | "m4v" | "m2ts"
-        | "mts" | "flv" | "3gp" | "ogv" => {
-            FileKind::Video
-        }
-        "mp3" | "wav" | "flac" | "m4a" | "aac" | "ogg" | "opus" | "wma" | "aiff"
-        | "ac3" => {
+        "png" | "jpg" | "jpeg" | "webp" | "bmp" | "tif" | "tiff" | "gif" | "ico" | "avif"
+        | "heic" | "heif" | "svg" => FileKind::Image,
+        "mp4" | "mkv" | "mov" | "webm" | "avi" | "mpeg" | "mpg" | "m4v" | "m2ts" | "mts"
+        | "flv" | "3gp" | "ogv" => FileKind::Video,
+        "mp3" | "wav" | "flac" | "m4a" | "aac" | "ogg" | "opus" | "wma" | "aiff" | "ac3" => {
             FileKind::Audio
         }
         "pdf" => FileKind::Pdf,
-        "doc" | "docx" | "odt" | "rtf" | "xls" | "xlsx" | "ods" | "ppt" | "pptx"
-        | "odp" | "epub" => FileKind::Document,
-        "json" | "yaml" | "yml" | "toml" | "csv" | "txt" | "md" | "markdown" | "html"
-        | "htm" | "xml" | "js" | "jsx" | "ts" | "tsx" | "py" | "rs" | "go"
-        | "java" | "c" | "cpp" | "h" | "css" | "scss" | "sql" | "sh" | "srt"
-        | "vtt" => FileKind::Data,
+        "doc" | "docx" | "odt" | "rtf" | "xls" | "xlsx" | "ods" | "ppt" | "pptx" | "odp"
+        | "epub" => FileKind::Document,
+        "json" | "yaml" | "yml" | "toml" | "csv" | "txt" | "md" | "markdown" | "html" | "htm"
+        | "xml" | "js" | "jsx" | "ts" | "tsx" | "py" | "rs" | "go" | "java" | "c" | "cpp" | "h"
+        | "css" | "scss" | "sql" | "sh" | "srt" | "vtt" => FileKind::Data,
         "zip" | "tar" | "gz" | "bz2" | "xz" | "7z" | "rar" => FileKind::Archive,
         _ => FileKind::Unknown,
     }
@@ -47,8 +43,8 @@ fn kind_for_extension(value: &str) -> FileKind {
 
 fn inspect_one(value: String) -> Result<WorkFile, String> {
     let path = PathBuf::from(&value);
-    let metadata =
-        fs::metadata(&path).map_err(|error| format!("Не удалось прочитать {}: {error}", path.display()))?;
+    let metadata = fs::metadata(&path)
+        .map_err(|error| format!("Не удалось прочитать {}: {error}", path.display()))?;
     if !metadata.is_file() {
         return Err(format!("{} не является файлом", path.display()));
     }
@@ -65,7 +61,11 @@ fn inspect_one(value: String) -> Result<WorkFile, String> {
                 (
                     Some(format!(
                         "{count} {}",
-                        if count == 1 { "страница" } else { "страниц" }
+                        if count == 1 {
+                            "страница"
+                        } else {
+                            "страниц"
+                        }
                     )),
                     Some(count),
                 )
@@ -96,7 +96,10 @@ fn inspect_one(value: String) -> Result<WorkFile, String> {
 #[tauri::command]
 pub async fn inspect_paths(paths: Vec<String>) -> Result<Vec<WorkFile>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        paths.into_iter().map(inspect_one).collect::<Result<Vec<_>, _>>()
+        paths
+            .into_iter()
+            .map(inspect_one)
+            .collect::<Result<Vec<_>, _>>()
     })
     .await
     .map_err(|error| error.to_string())?
@@ -106,7 +109,7 @@ pub async fn inspect_paths(paths: Vec<String>) -> Result<Vec<WorkFile>, String> 
 pub async fn detect_engines() -> Result<Vec<crate::model::EngineInfo>, String> {
     tauri::async_runtime::spawn_blocking(engines::detect)
         .await
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -143,10 +146,7 @@ pub fn cancel_job(id: String, manager: State<'_, JobManager>) -> Result<JobSnaps
 }
 
 #[tauri::command]
-pub fn get_settings(
-    app: AppHandle,
-    manager: State<'_, JobManager>,
-) -> Result<AppSettings, String> {
+pub fn get_settings(app: AppHandle, manager: State<'_, JobManager>) -> Result<AppSettings, String> {
     let settings = settings::load(&app)?;
     engines::set_custom_paths(&settings.engine_paths);
     manager.set_limit(settings.max_parallel_jobs);
@@ -181,11 +181,7 @@ pub fn initial_files(opened: State<'_, OpenedFiles>) -> Vec<String> {
 }
 
 #[tauri::command]
-pub async fn file_thumbnail(
-    path: String,
-    page: usize,
-    max_size: u32,
-) -> Result<String, String> {
+pub async fn file_thumbnail(path: String, page: usize, max_size: u32) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || preview::thumbnail(&path, page, max_size))
         .await
         .map_err(|error| error.to_string())?
@@ -231,10 +227,7 @@ pub async fn read_metadata(path: String) -> Result<serde_json::Value, String> {
 }
 
 #[tauri::command]
-pub async fn strip_metadata_copy(
-    path: String,
-    output_dir: String,
-) -> Result<String, String> {
+pub async fn strip_metadata_copy(path: String, output_dir: String) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         metadata_ops::strip_copy(&path, &output_dir)
             .map(|output| output.to_string_lossy().to_string())
@@ -373,9 +366,7 @@ fn split_sync(request: SplitRequest) -> Result<BatchResult, String> {
                 Err("Этот формат изображения нельзя разделить на плитки".to_string())
             }
         }
-        "duration" => {
-            external_ops::split_media(&input, &output_dir, request.segment_seconds)
-        }
+        "duration" => external_ops::split_media(&input, &output_dir, request.segment_seconds),
         _ => Err("Этот режим не подходит выбранному файлу".to_string()),
     };
 

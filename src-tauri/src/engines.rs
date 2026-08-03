@@ -7,6 +7,7 @@ use std::{
 };
 
 use crate::model::{EngineInfo, EngineInstallPlan};
+use crate::{engine_bundle, process::background_command};
 
 static CUSTOM_PATHS: OnceLock<RwLock<HashMap<String, PathBuf>>> = OnceLock::new();
 
@@ -30,6 +31,107 @@ fn custom_path(id: &str) -> Option<PathBuf> {
     custom_paths().read().ok()?.get(id).cloned()
 }
 
+fn runtime_directories(root: &Path) -> Vec<PathBuf> {
+    [
+        root.to_path_buf(),
+        root.join("bin"),
+        root.join("Library").join("bin"),
+        root.join("Library").join("usr").join("bin"),
+        root.join("Scripts"),
+    ]
+    .into_iter()
+    .filter(|path| path.is_dir())
+    .collect()
+}
+
+pub fn command(executable: &Path) -> Command {
+    let _ = engine_bundle::ensure();
+    let mut command = background_command(executable);
+    if let Some(runtime) = engine_bundle::runtime() {
+        let mut path_entries = runtime_directories(&runtime.environment);
+        if let Some(current) = env::var_os("PATH") {
+            path_entries.extend(env::split_paths(&current));
+        }
+        if let Ok(path) = env::join_paths(path_entries) {
+            command.env("PATH", path);
+        }
+        command.env("CONDA_PREFIX", &runtime.environment);
+        for directory in [
+            runtime
+                .environment
+                .join("etc")
+                .join("conda")
+                .join("env_vars.d"),
+            runtime
+                .environment
+                .join("Library")
+                .join("etc")
+                .join("conda")
+                .join("env_vars.d"),
+        ] {
+            let Ok(entries) = std::fs::read_dir(directory) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let Ok(contents) = std::fs::read_to_string(entry.path()) else {
+                    continue;
+                };
+                let Ok(values) = serde_json::from_str::<HashMap<String, String>>(&contents) else {
+                    continue;
+                };
+                command.envs(values);
+            }
+        }
+        for tessdata in [
+            runtime.environment.join("share").join("tessdata"),
+            runtime
+                .environment
+                .join("Library")
+                .join("share")
+                .join("tessdata"),
+        ] {
+            if tessdata.is_dir() {
+                command.env("TESSDATA_PREFIX", tessdata);
+                break;
+            }
+        }
+    }
+    command
+}
+
+fn bundled_command_candidates(command: &str) -> Vec<PathBuf> {
+    let _ = engine_bundle::ensure();
+    let Some(runtime) = engine_bundle::runtime() else {
+        return Vec::new();
+    };
+    let mut names = vec![command.to_string()];
+    #[cfg(target_os = "windows")]
+    if !command.to_ascii_lowercase().ends_with(".exe") {
+        names.push(format!("{command}.exe"));
+    }
+    let mut candidates = Vec::new();
+    for directory in runtime_directories(&runtime.environment) {
+        for name in &names {
+            candidates.push(directory.join(name));
+        }
+    }
+    candidates
+}
+
+fn engine_candidates(id: &str, executable: &str, additional: &[&str]) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    if id == "libreoffice" {
+        let _ = engine_bundle::ensure();
+        if let Some(runtime) = engine_bundle::runtime() {
+            candidates.push(runtime.libreoffice_executable);
+        }
+    } else {
+        candidates.extend(bundled_command_candidates(executable));
+    }
+    candidates.extend(platform_candidates(executable, additional));
+    candidates
+}
+
 struct EngineDefinition {
     id: &'static str,
     name: &'static str,
@@ -46,7 +148,8 @@ fn definitions() -> Vec<EngineDefinition> {
             name: "FFmpeg",
             description: "Видео и аудио",
             formats: &["MP4", "WebM", "MOV", "MP3", "WAV", "FLAC", "Opus"],
-            candidates: platform_candidates(
+            candidates: engine_candidates(
+                "ffmpeg",
                 "ffmpeg",
                 &[
                     "/opt/homebrew/bin/ffmpeg",
@@ -61,7 +164,8 @@ fn definitions() -> Vec<EngineDefinition> {
             name: "LibreOffice",
             description: "Офисные документы",
             formats: &["DOCX", "XLSX", "PPTX", "ODT", "ODS", "PDF"],
-            candidates: platform_candidates(
+            candidates: engine_candidates(
+                "libreoffice",
                 "soffice",
                 &[
                     "/Applications/LibreOffice.app/Contents/MacOS/soffice",
@@ -76,7 +180,8 @@ fn definitions() -> Vec<EngineDefinition> {
             name: "Pandoc",
             description: "Разметка и электронные книги",
             formats: &["Markdown", "HTML", "EPUB", "DOCX"],
-            candidates: platform_candidates(
+            candidates: engine_candidates(
+                "pandoc",
                 "pandoc",
                 &[
                     "/opt/homebrew/bin/pandoc",
@@ -91,7 +196,8 @@ fn definitions() -> Vec<EngineDefinition> {
             name: "qpdf",
             description: "Разделение и объединение PDF без потерь",
             formats: &["PDF"],
-            candidates: platform_candidates(
+            candidates: engine_candidates(
+                "qpdf",
                 "qpdf",
                 &[
                     "/opt/homebrew/bin/qpdf",
@@ -106,7 +212,8 @@ fn definitions() -> Vec<EngineDefinition> {
             name: "Poppler",
             description: "PDF в изображения и текст",
             formats: &["PDF", "PNG", "JPEG", "TXT"],
-            candidates: platform_candidates(
+            candidates: engine_candidates(
+                "poppler",
                 "pdftoppm",
                 &[
                     "/opt/homebrew/bin/pdftoppm",
@@ -121,7 +228,8 @@ fn definitions() -> Vec<EngineDefinition> {
             name: "Tesseract OCR",
             description: "Распознавание текста в изображениях и PDF",
             formats: &["PNG", "JPEG", "TIFF", "PDF", "TXT"],
-            candidates: platform_candidates(
+            candidates: engine_candidates(
+                "tesseract",
                 "tesseract",
                 &[
                     "/opt/homebrew/bin/tesseract",
@@ -136,7 +244,8 @@ fn definitions() -> Vec<EngineDefinition> {
             name: "ExifTool",
             description: "Просмотр и удаление метаданных",
             formats: &["EXIF", "XMP", "IPTC", "PDF", "Media"],
-            candidates: platform_candidates(
+            candidates: engine_candidates(
+                "exiftool",
                 "exiftool",
                 &[
                     "/opt/homebrew/bin/exiftool",
@@ -152,7 +261,8 @@ fn definitions() -> Vec<EngineDefinition> {
             description: "Архивы 7Z, RAR, TAR и другие",
             formats: &["7Z", "RAR", "ZIP", "TAR", "GZ"],
             candidates: {
-                let mut candidates = platform_candidates(
+                let mut candidates = engine_candidates(
+                    "7zip",
                     "7z",
                     &[
                         "/opt/homebrew/bin/7zz",
@@ -160,7 +270,7 @@ fn definitions() -> Vec<EngineDefinition> {
                         r"C:\Program Files\7-Zip\7z.exe",
                     ],
                 );
-                candidates.extend(platform_candidates("7zz", &[]));
+                candidates.extend(engine_candidates("7zip", "7zz", &[]));
                 candidates
             },
             version_argument: "-h",
@@ -187,7 +297,7 @@ fn platform_candidates(command: &str, additional: &[&str]) -> Vec<PathBuf> {
 }
 
 fn probe(executable: &Path, argument: &str) -> Option<String> {
-    let output = Command::new(executable).arg(argument).output().ok()?;
+    let output = command(executable).arg(argument).output().ok()?;
     if !output.status.success() && output.stdout.is_empty() && output.stderr.is_empty() {
         return None;
     }
@@ -216,9 +326,10 @@ pub fn find_engine(id: &str) -> Option<PathBuf> {
 }
 
 pub fn find_command(command: &str) -> Option<PathBuf> {
-    platform_candidates(command, &[])
+    bundled_command_candidates(command)
         .into_iter()
-        .find(|candidate| Command::new(candidate).arg("-h").output().is_ok())
+        .chain(platform_candidates(command, &[]))
+        .find(|candidate| self::command(candidate).arg("-h").output().is_ok())
 }
 
 pub fn find_related_command(engine_id: &str, command: &str) -> Option<PathBuf> {
@@ -233,14 +344,15 @@ pub fn find_related_command(engine_id: &str, command: &str) -> Option<PathBuf> {
             command.to_string()
         };
         let sibling = engine.with_file_name(file_name);
-        if Command::new(&sibling).arg("-h").output().is_ok() {
+        if self::command(&sibling).arg("-h").output().is_ok() {
             return Some(sibling);
         }
     }
     find_command(command)
 }
 
-pub fn detect() -> Vec<EngineInfo> {
+pub fn detect() -> Result<Vec<EngineInfo>, String> {
+    engine_bundle::ensure()?;
     let mut result = vec![EngineInfo {
         id: "native".to_string(),
         name: "Morf Core".to_string(),
@@ -248,10 +360,12 @@ pub fn detect() -> Vec<EngineInfo> {
         version: Some(env!("CARGO_PKG_VERSION").to_string()),
         path: None,
         description: "Изображения, PDF из изображений и данные".to_string(),
-        formats: ["PNG", "JPEG", "WebP", "BMP", "TIFF", "JSON", "YAML", "TOML", "CSV"]
-            .into_iter()
-            .map(str::to_string)
-            .collect(),
+        formats: [
+            "PNG", "JPEG", "WebP", "BMP", "TIFF", "JSON", "YAML", "TOML", "CSV",
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect(),
     }];
 
     for definition in definitions() {
@@ -268,10 +382,14 @@ pub fn detect() -> Vec<EngineInfo> {
             version: detected.as_ref().map(|(_, version)| version.clone()),
             path: detected.map(|(path, _)| path.to_string_lossy().to_string()),
             description: definition.description.to_string(),
-            formats: definition.formats.iter().map(|item| item.to_string()).collect(),
+            formats: definition
+                .formats
+                .iter()
+                .map(|item| item.to_string())
+                .collect(),
         });
     }
-    result
+    Ok(result)
 }
 
 pub fn install_plans() -> Vec<EngineInstallPlan> {

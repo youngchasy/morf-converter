@@ -2,8 +2,10 @@ use std::{
     ffi::OsStr,
     fs,
     path::{Path, PathBuf},
-    process::{Command, Output},
+    process::Output,
 };
+
+use crate::engines;
 
 pub fn extension(path: &Path) -> String {
     path.extension()
@@ -51,7 +53,7 @@ pub fn collision_free_path(
 }
 
 pub fn run_checked(executable: &Path, arguments: &[String]) -> Result<Output, String> {
-    let output = Command::new(executable)
+    let output = engines::command(executable)
         .args(arguments)
         .output()
         .map_err(|error| format!("Не удалось запустить {}: {error}", executable.display()))?;
