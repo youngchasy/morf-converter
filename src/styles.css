@@ -316,6 +316,74 @@ summary:focus-visible {
   overflow: hidden;
 }
 
+.engine-bootstrap {
+  display: grid;
+  width: min(560px, calc(100% - 48px));
+  min-height: 310px;
+  margin: 24px auto;
+  padding: 46px;
+  place-items: center;
+  align-content: center;
+  color: var(--ink);
+  text-align: center;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
+.engine-bootstrap-icon {
+  position: relative;
+  display: grid;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  place-items: center;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border-radius: 18px;
+}
+
+.engine-bootstrap-icon .spin {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  padding: 3px;
+  color: #fff;
+  background: var(--primary);
+  border-radius: 50%;
+}
+
+.engine-bootstrap h1 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.025em;
+}
+
+.engine-bootstrap p {
+  max-width: 430px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.engine-bootstrap small {
+  margin-top: 14px;
+  color: var(--soft);
+  font-size: 10px;
+}
+
+.engine-bootstrap.error .engine-bootstrap-icon {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.engine-bootstrap.error .button {
+  margin-top: 20px;
+}
+
 .workspace-grid {
   display: grid;
   width: 100%;

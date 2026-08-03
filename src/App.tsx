@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Circle, HardDrive, RefreshCw } from "lucide-react";
+import { AlertTriangle, Circle, HardDrive, PackageOpen, RefreshCw } from "lucide-react";
 import { Sidebar } from "./components/Sidebar";
 import {
   detectEngines,
@@ -32,15 +32,18 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(false);
   const [engines, setEngines] = useState<EngineInfo[]>([]);
   const [checking, setChecking] = useState(true);
+  const [engineError, setEngineError] = useState<string | null>(null);
   const [history, setHistory] = useState<OperationRecord[]>(loadHistory);
   const [incomingPaths, setIncomingPaths] = useState<string[]>([]);
 
   const refreshEngines = useCallback(async () => {
     setChecking(true);
+    setEngineError(null);
     try {
       setEngines(await detectEngines());
-    } catch {
+    } catch (error) {
       setEngines([]);
+      setEngineError(String(error));
     } finally {
       setChecking(false);
     }
@@ -124,24 +127,52 @@ export default function App() {
         </div>
 
         <div className="workspace">
-          {workspace === "convert" && (
+          {checking && engines.length === 0 ? (
+            <section className="engine-bootstrap" aria-live="polite">
+              <span className="engine-bootstrap-icon">
+                <PackageOpen size={28} />
+                <RefreshCw className="spin" size={16} />
+              </span>
+              <h1>Подготавливаем встроенные движки</h1>
+              <p>
+                Это происходит только после первой установки или обновления. Morf
+                распаковывает локальный комплект — интернет и терминал не нужны.
+              </p>
+              <small>Большой комплект с LibreOffice может занять несколько минут.</small>
+            </section>
+          ) : engineError && engines.length === 0 ? (
+            <section className="engine-bootstrap error" role="alert">
+              <span className="engine-bootstrap-icon">
+                <AlertTriangle size={29} />
+              </span>
+              <h1>Не удалось подготовить движки</h1>
+              <p>{engineError}</p>
+              <button
+                className="button primary"
+                type="button"
+                onClick={() => void refreshEngines()}
+              >
+                <RefreshCw size={15} /> Повторить
+              </button>
+            </section>
+          ) : workspace === "convert" ? (
             <ConvertView
               engines={engines}
               onRecord={addRecord}
               incomingPaths={incomingPaths}
               onConsumeIncoming={() => setIncomingPaths([])}
             />
-          )}
-          {workspace === "combine" && <CombineView engines={engines} onRecord={addRecord} />}
-          {workspace === "split" && <SplitView engines={engines} onRecord={addRecord} />}
-          {workspace === "tools" && (
+          ) : workspace === "combine" ? (
+            <CombineView engines={engines} onRecord={addRecord} />
+          ) : workspace === "split" ? (
+            <SplitView engines={engines} onRecord={addRecord} />
+          ) : workspace === "tools" ? (
             <ToolsView
               engines={engines}
               onNavigate={setWorkspace}
               onRefresh={() => void refreshEngines()}
             />
-          )}
-          {workspace === "history" && (
+          ) : (
             <HistoryView records={history} onClear={() => setHistory([])} />
           )}
         </div>

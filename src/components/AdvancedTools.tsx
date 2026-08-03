@@ -98,6 +98,13 @@ export function AdvancedTools({
     () => engines.filter((engine) => engine.id !== "native"),
     [engines]
   );
+  const missingPlans = useMemo(
+    () =>
+      plans.filter(
+        (plan) => !engines.find((engine) => engine.id === plan.engineId)?.installed
+      ),
+    [engines, plans]
+  );
 
   const chooseOne = async (setter: (path: string) => void) => {
     const [path] = await pickFiles(false);
@@ -490,17 +497,15 @@ export function AdvancedTools({
 
             <div className="settings-side">
               <article className="install-card">
-                <strong>Опциональные движки</strong>
+                <strong>
+                  {missingPlans.length ? "Резервная установка" : "Встроенный комплект готов"}
+                </strong>
                 <p>
-                  Выберите официальный установщик или скопируйте команду. Системные
-                  изменения всегда подтверждаете вы.
+                  {missingPlans.length
+                    ? "Если встроенная копия повреждена, можно временно подключить системную установку."
+                    : "Все восемь внешних движков входят в полную версию Morf и работают локально."}
                 </p>
-                {plans
-                  .filter(
-                    (plan) =>
-                      !engines.find((engine) => engine.id === plan.engineId)?.installed
-                  )
-                  .map((plan) => (
+                {missingPlans.map((plan) => (
                     <details key={plan.engineId}>
                       <summary>{plan.title}</summary>
                       <code>{plan.command}</code>
