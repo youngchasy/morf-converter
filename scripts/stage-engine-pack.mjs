@@ -47,6 +47,28 @@ async function findOnPath(name) {
   throw new Error(`${name} не найден в PATH`);
 }
 
+async function locateStandaloneUnpacker() {
+  if (process.env.MORF_PIXI_UNPACK) {
+    const candidate = resolve(process.env.MORF_PIXI_UNPACK);
+    if (await exists(candidate)) return candidate;
+    throw new Error(`Standalone pixi-unpack не найден: ${candidate}`);
+  }
+
+  const candidate = await findOnPath("pixi-unpack");
+  const trampolineConfiguration = join(
+    dirname(candidate),
+    "trampoline_configuration",
+    "pixi-unpack.json"
+  );
+  if (await exists(trampolineConfiguration)) {
+    throw new Error(
+      "В PATH найден Pixi-трамплин вместо standalone pixi-unpack. " +
+        "Задайте MORF_PIXI_UNPACK с путём к отдельному бинарнику из релиза pixi-pack."
+    );
+  }
+  return candidate;
+}
+
 async function sha256(path) {
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(path)) hash.update(chunk);
@@ -111,7 +133,7 @@ async function main() {
   await mkdir(outputDirectory, { recursive: true });
   const environmentTarget = join(outputDirectory, "environment.tar");
   const libreOfficeTarget = join(outputDirectory, "libreoffice.tar.gz");
-  const unpackerSource = await findOnPath("pixi-unpack");
+  const unpackerSource = await locateStandaloneUnpacker();
   const unpackerName = process.platform === "win32" ? "pixi-unpack.exe" : "pixi-unpack";
   const unpackerTarget = join(outputDirectory, unpackerName);
 
