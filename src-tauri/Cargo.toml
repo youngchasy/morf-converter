@@ -1,6 +1,6 @@
 [package]
 name = "morf"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 description = "Lightweight offline file conversion workshop"
 authors = ["Morf contributors"]
 edition = "2021"
